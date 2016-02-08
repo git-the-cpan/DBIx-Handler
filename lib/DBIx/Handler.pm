@@ -1,11 +1,13 @@
 package DBIx::Handler;
 use strict;
 use warnings;
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 use DBI 1.605;
 use DBIx::TransactionManager 1.09;
 use Carp ();
+
+sub _noop {}
 
 *connect = \&new;
 sub new {
@@ -17,10 +19,11 @@ sub new {
         _pid             => undef,
         _dbh             => undef,
         trace_query      => $opts->{trace_query}      || 0,
+        trace_ignore_if  => $opts->{trace_ignore_if}  || \&_noop,
         result_class     => $opts->{result_class}     || undef,
         on_connect_do    => $opts->{on_connect_do}    || undef,
         on_disconnect_do => $opts->{on_disconnect_do} || undef,
-        dbi_class => $opts->{dbi_class} || "DBI",
+        dbi_class        => $opts->{dbi_class} || "DBI",
     }, $class;
 }
 
@@ -28,13 +31,18 @@ sub _connect {
     my $self = shift;
 
     my $dbh = $self->{_dbh} = $self->{dbi_class}->connect(@{$self->{_connect_info}});
+    my $attr = @{$self->{_connect_info}} > 3 ? $self->{_connect_info}->[3] : {};
 
-    if (DBI->VERSION > 1.613 && (@{$self->{_connect_info}} < 4 || !exists $self->{_connect_info}[3]{AutoInactiveDestroy})) {
+    if (DBI->VERSION > 1.613 && !exists $attr->{AutoInactiveDestroy}) {
         $dbh->STORE(AutoInactiveDestroy => 1);
     }
 
-    if (@{$self->{_connect_info}} < 4 || (!exists $self->{_connect_info}[3]{RaiseError} && !exists $self->{_connect_info}[3]{HandleError})) {
+    if (!exists $attr->{RaiseError} && !exists $attr->{HandleError}) {
         $dbh->STORE(RaiseError => 1);
+    }
+
+    if ($dbh->FETCH('RaiseError') && !exists $attr->{PrintError}) {
+        $dbh->STORE(PrintError => 0);
     }
 
     $self->{_pid} = $$;
@@ -57,13 +65,13 @@ sub _seems_connected {
     if ( $self->{_pid} != $$ ) {
         $dbh->STORE(InactiveDestroy => 1);
         $self->_in_txn_check;
-        $self->{txn_manager} = undef;
+        delete $self->{txn_manager};
         return;
     }
 
     unless ($dbh->FETCH('Active') && $dbh->ping) {
         $self->_in_txn_check;
-        $self->{txn_manager} = undef;
+        $self->_disconnect;
         return;
     }
 
@@ -73,13 +81,17 @@ sub _seems_connected {
 sub disconnect {
     my $self = shift;
 
-    my $dbh = $self->_seems_connected or return;
+    $self->_seems_connected or return;
+    $self->_disconnect;
+}
 
-    $self->{txn_manager} = undef;
+sub _disconnect {
+    my $self = shift;
+    my $dbh = delete $self->{_dbh} or return;
+    delete $self->{txn_manager};
     $self->_run_on('on_disconnect_do', $dbh);
     $dbh->STORE(CachedKids => {});
     $dbh->disconnect;
-    $self->{_dbh} = undef;
 }
 
 sub _run_on {
@@ -109,6 +121,12 @@ sub trace_query {
     my ($self, $flag) = @_;
     $self->{trace_query} = $flag if defined $flag;
     $self->{trace_query};
+}
+
+sub trace_ignore_if {
+    my ($self, $callback) = @_;
+    $self->{trace_ignore_if} = $callback if defined $callback;
+    $self->{trace_ignore_if};
 }
 
 sub query {
@@ -165,6 +183,7 @@ sub _trace_query_set_comment {
     my $i=0;
     while ( my (@caller) = caller($i++) ) {
         next if ( $caller[0]->isa( __PACKAGE__ ) );
+        next if $self->trace_ignore_if->(@caller);
         my $comment = "$caller[1] at line $caller[2]";
         $comment =~ s/\*\// /g;
         $sql = "/* $comment */ $sql";
@@ -372,6 +391,10 @@ this result_class use to be create query method response object.
 =item $handler->trace_query($flag);
 
 inject sql comment when trace_query is true. 
+
+=item $handler->trace_ignore_if($callback);
+
+ignore to inject sql comment when trace_ignore_if's return value is true. 
 
 =back
 

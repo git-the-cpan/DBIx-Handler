@@ -45,9 +45,9 @@ DBIx::Hanler provide scope base transaction, fork safe dbh handling, simple.
 
     If an exception occurs, or the guard object otherwise leaves the scope
     before `$txn->commit` is called, the transaction will be rolled
-    back by an explicit ["txn_rollback"](#txn_rollback) call. In essence this is akin to
-    using a ["txn_begin"](#txn_begin)/["txn_commit"](#txn_commit) pair, without having to worry
-    about calling ["txn_rollback"](#txn_rollback) at the right places. Note that since there
+    back by an explicit ["txn\_rollback"](#txn_rollback) call. In essence this is akin to
+    using a ["txn\_begin"](#txn_begin)/["txn\_commit"](#txn_commit) pair, without having to worry
+    about calling ["txn\_rollback"](#txn_rollback) at the right places. Note that since there
     is no defined code closure, there will be no retries and other magic upon
     database disconnection.
 
@@ -119,9 +119,13 @@ DBIx::Hanler provide scope base transaction, fork safe dbh handling, simple.
 
     inject sql comment when trace\_query is true. 
 
+- $handler->trace\_ignore\_if($callback);
+
+    ignore to inject sql comment when trace\_ignore\_if's return value is true. 
+
 # AUTHOR
 
-Atsushi Kobayashi <nekokak \_at\_ gmail \_dot\_ com>
+Atsushi Kobayashi &lt;nekokak \_at\_ gmail \_dot\_ com>
 
 # SEE ALSO
 
