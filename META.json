@@ -58,7 +58,7 @@
    "provides" : {
       "DBIx::Handler" : {
          "file" : "lib/DBIx/Handler.pm",
-         "version" : "0.11"
+         "version" : "0.12"
       }
    },
    "release_status" : "stable",
@@ -72,7 +72,7 @@
          "web" : "https://github.com/nekokak/p5-DBIx-Handler"
       }
    },
-   "version" : "0.11",
+   "version" : "0.12",
    "x_authority" : "cpan:XAICRON",
    "x_contributors" : [
       "Keiji, Yoshimi <walf443@gmail.com>",
@@ -83,5 +83,6 @@
       "xaicron <xaicron@gmail.com>",
       "Mohammad S Anwar <mohammad.anwar@yahoo.com>",
       "karupanerura <karupa@cpan.org>"
-   ]
+   ],
+   "x_serialization_backend" : "JSON::PP version 2.27300"
 }
